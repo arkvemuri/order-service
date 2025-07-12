@@ -10,7 +10,7 @@ pipeline {
         GITHUB_REPO_URL = 'https://github.com/arkvemuri/order-service.git'
         BRANCH_NAME = 'master'
         APP_VERSION = '1.0.0'
-        SONAR_PROJECT_KEY = 'order'-listing'
+        SONAR_PROJECT_KEY = 'order-listing'
         DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDENTIAL')
         VERSION = "${env.BUILD_ID}"
     }
