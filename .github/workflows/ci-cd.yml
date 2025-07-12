@@ -49,13 +49,7 @@ jobs:
           target/surefire-reports/
           target/site/jacoco/
 
-    - name: Publish Test Results
-      uses: dorny/test-reporter@v1
-      if: always()
-      with:
-        name: Maven Tests
-        path: target/surefire-reports/*.xml
-        reporter: java-junit
+   
 
     - name: Code Coverage Report
       uses: codecov/codecov-action@v4
