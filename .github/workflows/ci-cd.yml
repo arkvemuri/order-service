@@ -12,7 +12,13 @@ env:
   SONAR_PROJECT_KEY: 'order-listing'
   DOCKER_IMAGE: 'arkvemuri/order-service'
 
+
 jobs:
+  services:
+    eureka:
+      image: arkvemuri/eureka-server:0.0.2
+      ports:
+        - 8761:8761
   test:
     name: Test and Code Quality
     runs-on: ubuntu-latest
