@@ -90,11 +90,91 @@ pipeline {
             }
         }
 
+        stage('Pre-Docker Network Check') {
+            steps {
+                script {
+                    echo 'Performing comprehensive network diagnostics...'
+                    
+                    // Check current DNS configuration
+                    bat 'ipconfig /all | findstr "DNS Servers"'
+                    
+                    // Test various network endpoints
+                    bat '''
+                        echo Testing network connectivity...
+                        ping -n 1 google.com || echo "Google ping failed"
+                        ping -n 1 docker.io || echo "Docker.io ping failed"
+                        ping -n 1 registry-1.docker.io || echo "Registry ping failed"
+                    '''
+                    
+                    // DNS resolution tests
+                    bat '''
+                        echo Testing DNS resolution...
+                        nslookup google.com || echo "Google DNS failed"
+                        nslookup docker.io || echo "Docker.io DNS failed"
+                        nslookup registry-1.docker.io || echo "Registry DNS failed"
+                    '''
+                    
+                    // Check if Docker is running and accessible
+                    bat 'docker version || echo "Docker not accessible"'
+                    bat 'docker info || echo "Docker info failed"'
+                }
+            }
+        }
+
         stage('Docker Build and Push') {
               steps {
-                  bat 'echo %DOCKERHUB_CREDENTIALS_PSW% | docker login -u %DOCKERHUB_CREDENTIALS_USR% --password-stdin'
-                  bat 'docker build -t arkvemuri/order-service:%VERSION% .'
-                  bat 'docker push arkvemuri/order-service:%VERSION%'
+                  script {
+                      // Network diagnostics
+                      echo 'Running network diagnostics...'
+                      
+                      try {
+                          bat 'nslookup registry-1.docker.io'
+                          echo 'DNS resolution successful'
+                      } catch (Exception e) {
+                          echo 'DNS lookup failed, trying to flush DNS cache...'
+                          bat 'ipconfig /flushdns'
+                          bat 'ipconfig /registerdns'
+                          
+                          // Wait a moment for DNS to refresh
+                          sleep(5)
+                          
+                          // Try alternative DNS servers
+                          echo 'Testing connectivity with alternative methods...'
+                          bat 'nslookup registry-1.docker.io 8.8.8.8 || echo "Google DNS lookup failed"'
+                      }
+                      
+                      // Test basic internet connectivity
+                      bat 'ping -n 2 8.8.8.8 || echo "Internet connectivity test failed"'
+                      
+                      // Docker login with enhanced error handling
+                      echo 'Attempting Docker operations...'
+                      
+                      retry(3) {
+                          bat '''
+                              echo Attempting Docker login...
+                              echo %DOCKERHUB_CREDENTIALS_PSW% | docker login -u %DOCKERHUB_CREDENTIALS_USR% --password-stdin
+                          '''
+                      }
+                      
+                      bat 'docker build -t arkvemuri/order-service:%VERSION% .'
+                      
+                      retry(3) {
+                          bat 'docker push arkvemuri/order-service:%VERSION%'
+                      }
+                  }
+              }
+              post {
+                  always {
+                      // Cleanup Docker login
+                      bat 'docker logout || echo "Docker logout failed or not needed"'
+                  }
+                  failure {
+                      echo 'Docker operations failed. Please check:'
+                      echo '1. Network connectivity to Docker Hub'
+                      echo '2. DNS resolution for registry-1.docker.io'
+                      echo '3. Docker daemon configuration'
+                      echo '4. Corporate firewall/proxy settings'
+                  }
               }
             }
 
