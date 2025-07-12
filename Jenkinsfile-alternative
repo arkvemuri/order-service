@@ -104,42 +104,35 @@ pipeline {
                    // Clean any existing GitOps directory
                    bat 'if exist deployment-folder rmdir /s /q deployment-folder'
                    
-                   // Clone the GitOps repository using HTTPS with credentials
-                   withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_TOKEN')]) {
+                   // Use Git credentials helper approach
+                   withCredentials([gitUsernamePassword(credentialsId: 'github-token', gitToolName: 'Default')]) {
                      bat '''
-                       git clone https://%GIT_USERNAME%:%GIT_TOKEN%@github.com/arkvemuri/deployment-folder.git deployment-folder
-                     '''
-                   }
-                   
-                   // Change to the GitOps directory
-                   dir('deployment-folder') {
-                     // Update the image tag in the manifest
-                     bat '''
-                       powershell -Command "(Get-Content aws/order-manifest.yml) -replace 'image:.*', 'image: arkvemuri/order-service:%VERSION%' | Set-Content aws/order-manifest.yml"
+                       git clone https://github.com/arkvemuri/deployment-folder.git deployment-folder
                      '''
                      
-                     // Configure git user (required for commits)
-                     bat 'git config user.email "jenkins@example.com"'
-                     bat 'git config user.name "Jenkins CI"'
-                     
-                     // Check if there are any changes
-                     script {
-                       def gitStatus = bat(script: 'git status --porcelain', returnStdout: true).trim()
-                       if (gitStatus) {
-                         echo "Changes detected in GitOps repository"
-                         bat 'git add .'
-                         bat 'git commit -m "Update order-service image tag to %VERSION%"'
-                         
-                         // Push changes using HTTPS with credentials
-                         withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_TOKEN')]) {
-                           bat '''
-                             git remote set-url origin https://%GIT_USERNAME%:%GIT_TOKEN%@github.com/arkvemuri/deployment-folder.git
-                             git push origin master
-                           '''
+                     // Change to the GitOps directory
+                     dir('deployment-folder') {
+                       // Update the image tag in the manifest
+                       bat '''
+                         powershell -Command "(Get-Content aws/order-manifest.yml) -replace 'image:.*', 'image: arkvemuri/order-service:%VERSION%' | Set-Content aws/order-manifest.yml"
+                       '''
+                       
+                       // Configure git user (required for commits)
+                       bat 'git config user.email "jenkins@example.com"'
+                       bat 'git config user.name "Jenkins CI"'
+                       
+                       // Check if there are any changes
+                       script {
+                         def gitStatus = bat(script: 'git status --porcelain', returnStdout: true).trim()
+                         if (gitStatus) {
+                           echo "Changes detected in GitOps repository"
+                           bat 'git add .'
+                           bat 'git commit -m "Update order-service image tag to %VERSION%"'
+                           bat 'git push origin master'
+                           echo "Successfully updated GitOps repository with new image tag"
+                         } else {
+                           echo "No changes detected in GitOps repository"
                          }
-                         echo "Successfully updated GitOps repository with new image tag"
-                       } else {
-                         echo "No changes detected in GitOps repository"
                        }
                      }
                    }
