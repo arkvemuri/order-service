@@ -1,0 +1,104 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ master, main ]
+
+env:
+  JAVA_VERSION: '21'
+  MAVEN_OPTS: '-Xmx1024m'
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        cache: maven
+
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+
+    - name: Validate Maven project
+      run: mvn validate
+
+    - name: Compile code
+      run: mvn compile
+
+    - name: Run tests
+      run: mvn test
+
+    - name: Check code coverage
+      run: mvn jacoco:report
+
+    - name: Verify build
+      run: mvn verify -DskipTests
+
+    - name: Build Docker image (no push)
+      run: docker build -t order-service:pr-${{ github.event.number }} .
+
+    - name: Comment PR
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && comment.body.includes('## PR Validation Results')
+          );
+          
+          const success = '${{ job.status }}' === 'success';
+          const body = `## PR Validation Results
+          
+          ${success ? '✅' : '❌'} **Build Status**: ${success ? 'PASSED' : 'FAILED'}
+          
+          ### Checks Performed:
+          - Maven validation
+          - Code compilation
+          - Unit tests
+          - Code coverage analysis
+          - Docker image build
+          
+          ${success ? 
+            '🎉 All checks passed! This PR is ready for review.' : 
+            '⚠️ Some checks failed. Please review the logs and fix the issues.'
+          }
+          
+          **Commit**: \`${context.sha.substring(0, 7)}\`
+          **Workflow**: [${context.runId}](${context.payload.repository.html_url}/actions/runs/${context.runId})
+          `;
+          
+          if (botComment) {
+            github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: body
+            });
+          } else {
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+          }
