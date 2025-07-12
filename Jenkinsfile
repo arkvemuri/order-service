@@ -100,18 +100,46 @@ pipeline {
 
          stage('Update Image Tag in GitOps') {
                steps {
-                  checkout scmGit(branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[ credentialsId: 'local-git-ssh', url: 'git@github.com:arkvemuri/deployment-folder.git']])
                  script {
-                bat '''
-                   powershell -Command "(Get-Content aws/order-manifest.yml) -replace 'image:.*', 'image: arkvemuri/order-service:%VERSION%' | Set-Content aws/order-manifest.yml"
-                 '''
-                   bat 'git checkout master'
-                   bat 'git add .'
-                   bat 'git commit -m "Update image tag"'
-                   sshagent(['local-git-ssh'])
-                     {
-                           bat('git push')
+                   // Clean any existing GitOps directory
+                   bat 'if exist deployment-folder rmdir /s /q deployment-folder'
+                   
+                   // Clone the GitOps repository
+                   checkout scmGit(
+                     branches: [[name: '*/master']], 
+                     extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'deployment-folder']], 
+                     userRemoteConfigs: [[ credentialsId: 'local-git-ssh', url: 'git@github.com:arkvemuri/deployment-folder.git']]
+                   )
+                   
+                   // Change to the GitOps directory
+                   dir('deployment-folder') {
+                     // Update the image tag in the manifest
+                     bat '''
+                       powershell -Command "(Get-Content aws/order-manifest.yml) -replace 'image:.*', 'image: arkvemuri/order-service:%VERSION%' | Set-Content aws/order-manifest.yml"
+                     '''
+                     
+                     // Configure git user (required for commits)
+                     bat 'git config user.email "jenkins@example.com"'
+                     bat 'git config user.name "Jenkins CI"'
+                     
+                     // Check if there are any changes
+                     script {
+                       def gitStatus = bat(script: 'git status --porcelain', returnStdout: true).trim()
+                       if (gitStatus) {
+                         echo "Changes detected in GitOps repository"
+                         bat 'git add .'
+                         bat 'git commit -m "Update order-service image tag to %VERSION%"'
+                         
+                         // Push changes using SSH agent
+                         sshagent(['local-git-ssh']) {
+                           bat 'git push origin master'
+                         }
+                         echo "Successfully updated GitOps repository with new image tag"
+                       } else {
+                         echo "No changes detected in GitOps repository"
+                       }
                      }
+                   }
                  }
                }
              }
