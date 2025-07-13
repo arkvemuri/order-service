@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ master ]
 
 env:
   JAVA_VERSION: '21'
@@ -14,15 +14,14 @@ env:
 
 
 jobs:
-  services:
-    eureka:
-      image: arkvemuri/eureka-server:0.0.2
-      ports:
-        - 8761:8761
   test:
     name: Test and Code Quality
     runs-on: ubuntu-latest
-    
+    services:
+      eureka:
+        image: arkvemuri/eureka-server:0.0.2
+        ports:
+          - 8761:8761
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -54,8 +53,6 @@ jobs:
         path: |
           target/surefire-reports/
           target/site/jacoco/
-
-   
 
     - name: Code Coverage Report
       uses: codecov/codecov-action@v4
@@ -218,7 +215,7 @@ jobs:
     
     steps:
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@0.24.0
       with:
         image-ref: '${{ env.DOCKER_IMAGE }}:${{ github.run_number }}'
         format: 'sarif'
