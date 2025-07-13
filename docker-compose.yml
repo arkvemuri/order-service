@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: order-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: orderdb
+    volumes:
+      - mongodb_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - order-network
+
+  eureka-server:
+    image: arkvemuri/eureka-server:0.0.2
+    container_name: order-eureka
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    networks:
+      - order-network
+
+  order-service:
+    build: .
+    container_name: order-service
+    restart: unless-stopped
+    ports:
+      - "9094:9094"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://admin:password@mongodb:27017/orderdb?authSource=admin
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    depends_on:
+      - mongodb
+      - eureka-server
+    networks:
+      - order-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  order-network:
+    driver: bridge

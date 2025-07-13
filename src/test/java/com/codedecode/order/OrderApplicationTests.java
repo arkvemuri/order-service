@@ -1,5 +1,6 @@
 package com.codedecode.order;
 
+import com.codedecode.order.config.TestContainersConfiguration;
 import com.codedecode.order.controller.OrderController;
 import com.codedecode.order.repo.OrderRepo;
 import com.codedecode.order.service.OrderService;
@@ -8,11 +9,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.RestTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
+@Import(TestContainersConfiguration.class)
+@ActiveProfiles("test")
 class OrderApplicationTests {
 
 	@Autowired
