@@ -92,7 +92,64 @@ run: |
 - ✅ Graceful handling of missing optional secrets
 - ✅ Clear feedback about what's missing and how to fix it
 
+## 🔧 Additional Fix: JaCoCo Maven Plugin
+
+### **Problem**: 
+```
+Error: No plugin found for prefix 'jacoco' in the current project
+```
+
+### **Solution**: Added JaCoCo Maven Plugin to `pom.xml`
+```xml
+<plugin>
+    <groupId>org.jacoco</groupId>
+    <artifactId>jacoco-maven-plugin</artifactId>
+    <version>0.8.12</version>
+    <executions>
+        <execution>
+            <goals>
+                <goal>prepare-agent</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+                <goal>report</goal>
+            </goals>
+        </execution>
+        <execution>
+            <id>jacoco-check</id>
+            <goals>
+                <goal>check</goal>
+            </goals>
+            <configuration>
+                <rules>
+                    <rule>
+                        <element>PACKAGE</element>
+                        <limits>
+                            <limit>
+                                <counter>LINE</counter>
+                                <value>COVEREDRATIO</value>
+                                <minimum>0.50</minimum>
+                            </limit>
+                        </limits>
+                    </rule>
+                </rules>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+### **✅ Result**: 
+- ✅ `mvn clean test jacoco:report` now works correctly
+- ✅ Coverage reports generated in `target/site/jacoco/`
+- ✅ XML report available for SonarQube and Codecov
+- ✅ Minimum 50% line coverage enforced
+
 ## 📚 References
 - [GitHub Actions Contexts](https://docs.github.com/en/actions/learn-github-actions/contexts)
 - [GitHub Actions Expressions](https://docs.github.com/en/actions/learn-github-actions/expressions)
 - [Encrypted Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+- [JaCoCo Maven Plugin](https://www.jacoco.org/jacoco/trunk/doc/maven.html)
