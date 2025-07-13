@@ -12,5 +12,11 @@ eureka:
 
 logging:
   level:
-    org.springframework.data.mongodb: DEBUG
-    com.codedecode.order: DEBUG
+    org.springframework.data.mongodb: INFO
+    com.codedecode.order: INFO
+    org.testcontainers: INFO
+
+# Testcontainers configuration
+testcontainers:
+  reuse:
+    enable: true

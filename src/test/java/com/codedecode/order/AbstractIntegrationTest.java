@@ -17,32 +17,29 @@
  * limitations under the License.
  * #L%
  */
-package com.codedecode.order.config;
+package com.codedecode.order;
 
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-@TestConfiguration(proxyBeanMethods = false)
-public class TestContainersConfiguration {
+@SpringBootTest
+@Testcontainers
+@ActiveProfiles("test")
+public abstract class AbstractIntegrationTest {
 
-    private static final MongoDBContainer mongoDBContainer = new MongoDBContainer(DockerImageName.parse("mongo:7.0"))
+    @Container
+    static MongoDBContainer mongoDBContainer = new MongoDBContainer(DockerImageName.parse("mongo:7.0"))
             .withExposedPorts(27017);
-
-    static {
-        mongoDBContainer.start();
-    }
-
-    @Bean
-    public MongoDBContainer mongoDbContainer() {
-        return mongoDBContainer;
-    }
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.data.mongodb.uri", mongoDBContainer::getReplicaSetUrl);
+        registry.add("eureka.client.enabled", () -> "false");
     }
 }
