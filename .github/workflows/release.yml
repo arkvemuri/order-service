@@ -110,29 +110,22 @@ jobs:
     needs: [release]
     
     steps:
-    - name: Check GitOps Token
+    - name: Update GitOps for Production Release
+      env:
+        GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
       run: |
-        if [ -z "${{ secrets.GITOPS_TOKEN }}" ]; then
+        if [ -z "$GITOPS_TOKEN" ]; then
           echo "⚠️  GITOPS_TOKEN not configured. Skipping GitOps repository update."
           echo "To enable GitOps updates, set the GITOPS_TOKEN repository secret."
           exit 0
         fi
         
-    - name: Checkout GitOps repository
-      if: ${{ secrets.GITOPS_TOKEN != '' }}
-      uses: actions/checkout@v4
-      with:
-        repository: arkvemuri/deployment-folder
-        token: ${{ secrets.GITOPS_TOKEN }}
-        path: deployment-folder
-
-    - name: Update production manifest
-      if: ${{ secrets.GITOPS_TOKEN != '' }}
-      run: |
+        # Checkout GitOps repository
+        git clone https://$GITOPS_TOKEN@github.com/arkvemuri/deployment-folder.git
         cd deployment-folder
-        IMAGE_TAG="${{ env.DOCKER_IMAGE }}:${{ needs.release.outputs.version }}"
         
         # Update production manifest
+        IMAGE_TAG="${{ env.DOCKER_IMAGE }}:${{ needs.release.outputs.version }}"
         sed -i "s|image:.*|image: ${IMAGE_TAG}|g" aws/order-manifest-prod.yml
         
         # Create a new release branch
@@ -145,10 +138,22 @@ jobs:
         git push origin release-${{ needs.release.outputs.version }}
 
     - name: Create Pull Request for Production Deployment
-      if: ${{ secrets.GITOPS_TOKEN != '' }}
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.GITOPS_TOKEN }}
+      env:
+        GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+      run: |
+        if [ -z "$GITOPS_TOKEN" ]; then
+          echo "⚠️  GITOPS_TOKEN not configured. Skipping PR creation."
+          exit 0
+        fi
+        
+        # Create PR using GitHub CLI
+        cd deployment-folder
+        gh pr create \
+          --title "Release ${{ needs.release.outputs.version }}: Deploy order-service to production" \
+          --body "Automated release deployment for order-service version ${{ needs.release.outputs.version }}" \
+          --head "release-${{ needs.release.outputs.version }}" \
+          --base "main" \
+          --repo "arkvemuri/deployment-folder"
         script: |
           const { data: pullRequest } = await github.rest.pulls.create({
             owner: 'arkvemuri',
