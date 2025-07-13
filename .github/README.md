@@ -57,11 +57,14 @@ Configure these secrets in your GitHub repository settings:
 - `DOCKERHUB_USERNAME` - Docker Hub username
 - `DOCKERHUB_TOKEN` - Docker Hub access token
 
-### SonarQube
+### SonarQube (Optional)
 - `SONAR_TOKEN` - SonarQube authentication token
-- `SONAR_HOST_URL` - SonarQube server URL
+- `SONAR_HOST_URL` - SonarQube server URL (e.g., https://sonarcloud.io)
 
-### GitOps Repository
+### Code Coverage (Optional)
+- `CODECOV_TOKEN` - Codecov.io authentication token
+
+### GitOps Repository (Optional)
 - `GITOPS_TOKEN` - GitHub token with access to deployment repository
 
 ### Optional Notifications

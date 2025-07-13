@@ -55,12 +55,14 @@ jobs:
           target/site/jacoco/
 
     - name: Code Coverage Report
+      if: ${{ secrets.CODECOV_TOKEN != '' }}
       uses: codecov/codecov-action@v4
       with:
         file: target/site/jacoco/jacoco.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   sonarqube:
     name: SonarQube Analysis
@@ -93,11 +95,20 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       run: |
+        # Check if SonarQube secrets are configured
+        if [ -z "${{ secrets.SONAR_TOKEN }}" ] || [ -z "${{ secrets.SONAR_HOST_URL }}" ]; then
+          echo "⚠️  SonarQube secrets not configured. Skipping SonarQube analysis."
+          echo "To enable SonarQube analysis, set the following repository secrets:"
+          echo "- SONAR_TOKEN: Your SonarQube authentication token"
+          echo "- SONAR_HOST_URL: Your SonarQube server URL (e.g., https://sonarcloud.io)"
+          exit 0
+        fi
+        
         mvn clean verify sonar:sonar \
           -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }} \
           -Dsonar.projectName=${{ env.SONAR_PROJECT_KEY }} \
           -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-          -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+          -Dsonar.token=${{ secrets.SONAR_TOKEN }} \
           -Dsonar.java.binaries=target/classes \
           -Dsonar.sources=src/main/java \
           -Dsonar.tests=src/test/java \
@@ -175,7 +186,16 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     
     steps:
+    - name: Check GitOps Token
+      run: |
+        if [ -z "${{ secrets.GITOPS_TOKEN }}" ]; then
+          echo "⚠️  GITOPS_TOKEN not configured. Skipping GitOps repository update."
+          echo "To enable GitOps updates, set the GITOPS_TOKEN repository secret."
+          exit 0
+        fi
+        
     - name: Checkout GitOps repository
+      if: ${{ secrets.GITOPS_TOKEN != '' }}
       uses: actions/checkout@v4
       with:
         repository: arkvemuri/deployment-folder
@@ -183,6 +203,7 @@ jobs:
         path: deployment-folder
 
     - name: Update image tag in manifest
+      if: ${{ secrets.GITOPS_TOKEN != '' }}
       run: |
         cd deployment-folder
         IMAGE_TAG="${{ env.DOCKER_IMAGE }}:${{ github.run_number }}"
@@ -193,6 +214,7 @@ jobs:
         cat aws/order-manifest.yml
 
     - name: Commit and push changes
+      if: ${{ secrets.GITOPS_TOKEN != '' }}
       run: |
         cd deployment-folder
         git config user.name "GitHub Actions"

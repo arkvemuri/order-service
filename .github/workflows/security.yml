@@ -101,7 +101,7 @@ jobs:
 
     - name: Check licenses
       run: |
-        mvn license:check \
+        mvn license:check-file-header \
           -Dlicense.failOnMissingHeader=true \
           -Dlicense.failOnNotUptodateHeader=true
 
